@@ -114,10 +114,7 @@ def main():
       if enable_graphite_dawn:
         args += ['dawn_enable_metal=true']
       args += [
-          'skia_use_gl=true',
-          'skia_use_egl=true',
           'skia_use_angle=true',
-          'angle_enable_shared_library=true',
           'skia_gl_standard="gles"',
       ]
     args += ['extra_cflags_cc+=["-frtti"]']
@@ -234,12 +231,6 @@ def main():
         ninja_targets.append('skia_graphite_ext')
     if enable_graphite_dawn:
         ninja_targets.append('skia_graphite_dawn_ext')
-
-  if is_macos:
-    ninja_targets.extend([
-        '//third_party/externals/angle2:libEGL',
-        '//third_party/externals/angle2:libGLESv2',
-    ])
 
   subprocess.check_call([ninja, '-C', out] + ninja_targets)
   return 0
