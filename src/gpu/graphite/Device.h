@@ -251,7 +251,11 @@ public:
     void drawAtlas(SkSpan<const SkRSXform>, SkSpan<const SkRect>, SkSpan<const SkColor>,
                    sk_sp<SkBlender>, const SkPaint&) override;
 
-    void drawDrawable(SkCanvas*, SkDrawable*, const SkMatrix*) override {}
+    // Graphite has no GPU draw handler for drawables (SkDrawable::snapGpuDrawHandler is Ganesh's), so a drawable
+    // draws its content onto the canvas as SkDevice does. The override had been empty, so a drawable drew nothing.
+    void drawDrawable(SkCanvas* canvas, SkDrawable* drawable, const SkMatrix* matrix) override {
+        this->SkDevice::drawDrawable(canvas, drawable, matrix);
+    }
     void drawMesh(const SkMesh&, sk_sp<SkBlender>, const SkPaint&) override;
 
     // Special images and layers
