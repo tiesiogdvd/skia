@@ -7,6 +7,9 @@
 
 #include "src/text/gpu/TextBlobRedrawCoordinator.h"
 
+#include <atomic>
+#include <cstdlib>
+
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPoint.h"
 #include "include/core/SkTypes.h"
@@ -216,6 +219,20 @@ sk_sp<TextBlob> TextBlobRedrawCoordinator::internalAdd(sk_sp<TextBlob> blob) {
         fBlobList.addToHead(blob.get());
         fCurrentSize += blob->size();
         idEntry->addBlob(blob);
+        // Flow: a blob drawn under a changing matrix (text in an animated scale) adds an entry
+        // to its ID's list on every draw, and every find walks that list comparing keys, so the
+        // list is bounded: past the cap, the earliest entry other than this one goes.
+        static const int kMaxBlobsPerID = [] {
+            const char* value = getenv("SKIA_TEXT_BLOB_MAX_PER_ID");
+            return value ? atoi(value) : 8;
+        }();
+        while (kMaxBlobsPerID > 0 && idEntry->fBlobs.size() > kMaxBlobsPerID) {
+            int victimIndex = idEntry->fBlobs[0].get() == blob.get() ? 1 : 0;
+            sk_sp<TextBlob> victim = idEntry->fBlobs[victimIndex];
+            fCurrentSize -= victim->size();
+            fBlobList.remove(victim.get());
+            idEntry->fBlobs.removeShuffle(victimIndex);
+        }
     }
 
     this->internalCheckPurge(blob.get());
@@ -256,6 +273,17 @@ TextBlobRedrawCoordinator::BlobIDCacheEntry::find(const TextBlob::Key& key) cons
 }
 
 int TextBlobRedrawCoordinator::BlobIDCacheEntry::findBlobIndex(const TextBlob::Key& key) const {
+    // Flow: SKIA_TEXT_BLOB_STATS=1 reports the entries a find walks, every 100000 finds.
+    static const bool kStats = getenv("SKIA_TEXT_BLOB_STATS") != nullptr;
+    if (kStats) {
+        static std::atomic<long> finds{0}, walked{0}, longest{0};
+        walked += fBlobs.size();
+        if (fBlobs.size() > longest) longest = fBlobs.size();
+        if (++finds % 100000 == 0) {
+            SkDebugf("[skia] text blob finds: %ld, entries walked per find %.1f, longest list %ld\n",
+                     finds.load(), (double)walked.exchange(0) / 100000.0, longest.exchange(0));
+        }
+    }
     for (int i = 0; i < fBlobs.size(); ++i) {
         if (fBlobs[i]->key() == key) {
             return i;
