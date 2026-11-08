@@ -1,19 +1,17 @@
 name: Build Skia Prebuilts For Skiko
 
+# Flow's fork: the branch flow/m<milestone> is JetBrains/skia's skiko-m<milestone> plus Flow's
+# changes (Ganesh GL as GLES on macOS, for ANGLE). A push builds every target skiko consumes, as a
+# check; a manual run with should_release=true also attaches the archives to the release
+# m<milestone>-egl-<10-char commit>, the tag skiko's dependencies.skia names. Release builds only.
 on:
   push:
     branches:
-      - skiko
-      - skiko-m*
-  pull_request:
+      - flow/m*
   workflow_dispatch:
     inputs:
-      milestone:
-        description: 'Milestone version for manual runs (integer, for example: 146)'
-        required: true
-        type: number
       should_release:
-        description: 'Run release related steps?'
+        description: 'Attach the archives to the release m<milestone>-egl-<commit>'
         required: true
         default: false
         type: boolean
@@ -33,24 +31,19 @@ jobs:
           fetch-depth: 0
       - id: milestone
         shell: bash
-        env:
-          INPUT_MILESTONE: ${{ github.event.inputs.milestone || '' }}
         run: |
-          if [[ "${GITHUB_REF_NAME}" == skiko-m* ]]; then
-            echo "value=${GITHUB_REF_NAME#skiko-}" >> "$GITHUB_OUTPUT"
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "value=m${INPUT_MILESTONE}" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF_NAME}" =~ ^flow/(m[0-9]+)$ ]]; then
+            echo "value=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=dev" >> "$GITHUB_OUTPUT"
+            echo "::error::Run this workflow on a flow/m<milestone> branch (got ${GITHUB_REF_NAME})"
+            exit 1
           fi
       - id: mode
         shell: bash
         env:
           INPUT_SHOULD_RELEASE: ${{ inputs.should_release || false }}
         run: |
-          if [[ "$GITHUB_REF" == refs/heads/skiko-m* ]]; then
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$INPUT_SHOULD_RELEASE" == "true" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$INPUT_SHOULD_RELEASE" == "true" ]]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_release=false" >> "$GITHUB_OUTPUT"
@@ -59,7 +52,7 @@ jobs:
         shell: bash
         run: |
           SHA="$(git rev-parse --short=10 "$GITHUB_SHA")"
-          echo "value=${{ steps.milestone.outputs.value }}-${SHA}" >> "$GITHUB_OUTPUT"
+          echo "value=${{ steps.milestone.outputs.value }}-egl-${SHA}" >> "$GITHUB_OUTPUT"
 
   macos:
     needs: prepare
@@ -69,7 +62,7 @@ jobs:
       matrix:
         target: ["macos", "ios", "iosSim", "tvos", "tvosSim"]
         machine: ["x64", "arm64"]
-        build_type: [Release, Debug]
+        build_type: [Release]
         exclude:
           - target: tvos
             machine: x64
@@ -102,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -131,7 +124,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -160,7 +153,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
         machine: ["x64", "arm64"]
     steps:
       - uses: actions/checkout@v4
@@ -193,7 +186,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -230,7 +223,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
         machine: ["x64", "arm64"]
     steps:
       - run: git config --global core.autocrlf input
