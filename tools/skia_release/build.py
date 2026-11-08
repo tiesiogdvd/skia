@@ -155,6 +155,16 @@ def main():
       args += ['skia_use_fonthost_mac=true', 'skia_use_vulkan=true']
       if enable_graphite_dawn:
         args += ['dawn_enable_metal=true']
+      # Flow: Ganesh's GL backend speaks GLES on macOS, so it runs on an
+      # ANGLE (EGL/GLES-on-Metal) context that the consumer creates; Skia
+      # loads no EGL itself. skia_use_angle only adds SK_ANGLE here (an
+      # official build has no ANGLE targets); skia_gl_standard="gles" makes
+      # skia_public define SK_ASSUME_GL_ES=1, which compiles out the
+      # desktop-GL interface. Metal, Vulkan and Graphite are unchanged.
+      args += [
+          'skia_use_angle=true',
+          'skia_gl_standard="gles"',
+      ]
     args += ['extra_cflags_cc+=["-frtti"]']
     args += ['skia_use_metal=true']
     if is_ios:
