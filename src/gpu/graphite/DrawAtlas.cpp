@@ -189,7 +189,7 @@ bool DrawAtlas::addRectToPage(unsigned int pageIdx, int width, int height,
     return false;
 }
 
-bool DrawAtlas::recordUploads(DrawContext* dc, Recorder* recorder) {
+bool DrawAtlas::recordUploads(DrawContext* dc, Recorder* recorder, UploadList* uploads) {
     TRACE_EVENT0("skia.gpu", TRACE_FUNC);
     const SkColorType maskCT = MaskFormatToColorType(fMaskFormat);
     // Src and dst colorInfo are the same
@@ -213,7 +213,8 @@ bool DrawAtlas::recordUploads(DrawContext* dc, Recorder* recorder) {
                 const UploadSource uploadSource = UploadSource::Make(
                         recorder->priv().caps(), view, colorInfo, colorInfo,
                         SkSpan(&level, 1), dstRect);
-                if (!dc->recordUpload(recorder, uploadSource)) {
+                if (!(uploads ? uploads->recordUpload(recorder, uploadSource)
+                              : dc->recordUpload(recorder, uploadSource))) {
                     return false;
                 }
             }

@@ -102,6 +102,9 @@ public:
 
     bool recordUploads(DrawContext* dc);
 
+    // Called by Recorder::snap() once it has flushed every device: a new Recording begins.
+    void beginRecording(Token nextFlushToken) { fRecordingFlushToken = nextFlushToken; }
+
     void evictAtlases() {
         for (int i = 0; i < kMaskFormatCount; ++i) {
             if (fAtlases[i]) {
@@ -153,6 +156,11 @@ private:
     static_assert(kMaskFormatCount == 3);
     bool fSupportBilerpAtlas;
     AtlasConfig fAtlasConfig;
+    // The flush token the current Recording began with. While it is still the Recorder's next
+    // flush token, no plot read by this Recording has been evicted (eviction needs a plot's last
+    // use to be older than the next flush token), so plots only gain glyphs and their uploads
+    // can all run at the start of the Recording, in one upload task, as Ganesh does its uploads.
+    Token fRecordingFlushToken = Token::InvalidToken().next();
 };
 
 }  // namespace skgpu::graphite

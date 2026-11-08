@@ -42,6 +42,7 @@ namespace skgpu::graphite {
 
 class DrawContext;
 class Recorder;
+class UploadList;
 class TextureProxy;
 
 /**
@@ -238,7 +239,10 @@ public:
     SkPixmap prepForRender(const AtlasLocator&,
                            int padding = 0,
                            std::optional<SkColor> initialColor = {});
-    bool recordUploads(DrawContext*, Recorder*);
+    // Records the uploads of the changed plots into `dc`'s pending uploads, which run just before
+    // dc's next draw pass; or, where `uploads` is given, into that list instead (a Recorder's root
+    // uploads run before every task of the Recording).
+    bool recordUploads(DrawContext*, Recorder*, UploadList* uploads = nullptr);
 
     const sk_sp<TextureProxy>* getProxies() const { return fProxies; }
 

@@ -30,6 +30,7 @@
 #include "src/gpu/RefCntedCallback.h"
 #include "src/gpu/Token.h"
 #include "src/gpu/graphite/AtlasProvider.h"
+#include "src/gpu/graphite/text/TextAtlasManager.h"
 #include "src/gpu/graphite/BufferManager.h"
 #include "src/gpu/graphite/Caps.h"
 #include "src/gpu/graphite/CommandBuffer.h"
@@ -205,6 +206,7 @@ std::unique_ptr<Recording> Recorder::snap() {
     }
     // Collect all pending tasks on the deferred recording canvas and any other tracked device.
     this->priv().flushTrackedDevices(SK_DUMP_TASKS_CODE("Recorder::Snap"));
+    fAtlasProvider->textAtlasManager()->beginRecording(fTokenTracker->nextFlushToken());
 
     // The scratch resources only need to be tracked until prepareResources() is finished, so
     // Recorder doesn't hold a persistent manager and it can be deleted when snap() returns.

@@ -335,8 +335,17 @@ DrawAtlas::ErrorCode TextAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph, G
 }
 
 bool TextAtlasManager::recordUploads(DrawContext* dc) {
+    // Uploaded per DrawContext, each device's glyphs became an upload task (a blit pass on Metal)
+    // just before its draw pass: with many layers, dozens of small blits between render passes,
+    // each a dependency the GPU must wait on. Before any mid-Recording flush they go to the
+    // Recording's root uploads instead; after one, plots may be reused within the Recording, so
+    // uploads stay ordered with the draws.
+    UploadList* uploads =
+            fRecorder->priv().tokenTracker()->nextFlushToken() == fRecordingFlushToken
+                    ? fRecorder->priv().rootUploadList()
+                    : nullptr;
     for (int i = 0; i < skgpu::kMaskFormatCount; i++) {
-        if (fAtlases[i] && !fAtlases[i]->recordUploads(dc, fRecorder)) {
+        if (fAtlases[i] && !fAtlases[i]->recordUploads(dc, fRecorder, uploads)) {
             return false;
         }
     }
